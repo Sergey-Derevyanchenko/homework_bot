@@ -18,7 +18,7 @@ PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-RETRY_TIME = 600
+RETRY_TIME = os.getenv('RETRY_TIME')
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -31,7 +31,7 @@ HOMEWORK_STATUSES = {
 
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     filename='main.log',
     filemode='w',
     format='%(asctime)s, %(levelname)s, %(message)s, %(time)s'
@@ -48,7 +48,7 @@ def send_message(bot, message):
         logger.info(f'Сообщение отправлено: {message}')
     except Exception as error:
         logger.error(f'Ошибка при отправке сообщения: {error}')
-        raise TelegramError(f'Сообщение не было отправлено {error}')
+        raise TelegramError(f'Ошибка при отправке сообщения: {error}')
 
 
 def get_api_answer(current_timestamp):
@@ -62,27 +62,24 @@ def get_api_answer(current_timestamp):
                          f'недоступен. Код ответа API: {response.status_code}')
             raise StatusCodeError('Код ответа сервера. '
                                   f'{response.status_code}')
-    except requests.exceptions.RequestException as request_error:
-        logger.error(f'Код ответа API: {request_error}')
-        raise RequestError(request_error)
-    try:
         return response.json()
-    except ValueError as error:
-        logger.error(error)
+    except RequestError as request_error:
+        logger.error(f'Код ответа API: {request_error}')
+        raise RequestError(f'Код ответа API: {request_error}')
+    except ValueError:
+        logger.error('JSON некорректен')
         raise ValueError('JSON некорректен')
 
 
 def check_response(response):
     """Проверка запроса."""
-    if not isinstance(response, dict):
-        logger.error('Ошибка. Ответ не явялется словарем!')
-        raise TypeError('Ошибка. Ответ не явялется словарем!')
     try:
         homework = response['homeworks']
-    except KeyError as error:
-        logger.error(error)
+    except KeyError:
+        logger.error('Неверный ключ')
         raise KeyError('Неверный ключ')
     if not isinstance(homework, list):
+        logger.error('Ошибка в данных')
         raise HomeworkExceptionError('Ошибка в данных')
     return homework
 
@@ -103,16 +100,7 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверка токенов."""
-    tokens = {
-        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
-        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
-        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
-    }
-    for token in tokens:
-        if tokens[token] is None:
-            logger.critical(f'Отсутствует или некорректна переменная: {token}')
-            return False
-    return True
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def main():
@@ -134,11 +122,9 @@ def main():
                 current_timestamp = check_homework.get('current timestamp')
             time.sleep(RETRY_TIME)
         except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            error_send_messeg = 'Ошибка отправки сообщения'
-            if error == TelegramError(error_send_messeg):
-                logger.error(error_send_messeg)
+            message = f'Ошибка отправки сообщения: {error}'
             logger.error(message)
+            response = send_message(bot, message)
         finally:
             time.sleep(RETRY_TIME)
 
