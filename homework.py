@@ -9,7 +9,8 @@ import telegram
 from dotenv import load_dotenv
 from telegram import TelegramError
 
-from exceptions import HomeworkExceptionError, RequestError, StatusCodeError
+from exceptions import (HomeworkExceptionError, RequestError, StatusCodeError,
+                        TokenError)
 
 load_dotenv()
 
@@ -107,7 +108,7 @@ def main():
     """Основная логика работы бота."""
     if not check_tokens():
         logger.critical('Отсутствуют необходимые переменные окружения')
-        return sys.exit('Отсутствуют необходимые переменные окружения')
+        raise TokenError('Отсутствуют необходимые переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     while True:
@@ -119,8 +120,7 @@ def main():
                 send_message(bot, message)
             else:
                 logger.debug('Обновлений по статусу ревью нет.')
-                current_timestamp = check_homework.get('current timestamp')
-            time.sleep(RETRY_TIME)
+                current_timestamp = response.get('current_date')
         except Exception as error:
             message = f'Ошибка отправки сообщения: {error}'
             logger.error(message)

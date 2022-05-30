@@ -8,11 +8,11 @@ class RequestError(Exception):
     pass
 
 
-class ResponseAnswerStatusError(Exception):
-    """Ошибка в статусе ответа."""
+class HomeworkExceptionError(Exception):
+    """Ошибка в данных по ключу homework."""
     pass
 
 
-class HomeworkExceptionError(Exception):
-    """Ошибка в данных по ключу homework."""
+class TokenError(Exception):
+    """Отсутствуют необходимые переменные окружения."""
     pass
